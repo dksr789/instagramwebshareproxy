@@ -1,15 +1,17 @@
 const express = require('express');
-const axios = require('axios');
+const request = require('request-promise');
 const bodyParser = require('body-parser');
 const path = require('path');
-const { HttpsProxyAgent } = require('https-proxy-agent');
+const cors = require('cors');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Webshare Proxy settings
-const proxyUrl = 'http://mflbldce:mvrkp30hptsm@206.41.172.74:6634';
-const proxyAgent = new HttpsProxyAgent(proxyUrl);
+const proxyUrl = 'http://mflbldce-rotate:mvrkp30hptsm@p.webshare.io:80';
+
+// Use CORS middleware
+app.use(cors());
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -31,8 +33,14 @@ async function solveCaptcha() {
     };
 
     try {
-        const res = await axios.post("https://api.capsolver.com/createTask", payload);
-        const task_id = res.data.taskId;
+        const res = await request.post({
+            uri: "https://api.capsolver.com/createTask",
+            body: payload,
+            json: true,
+            proxy: proxyUrl
+        });
+        
+        const task_id = res.taskId;
         if (!task_id) {
             throw new Error("Failed to create captcha task.");
         }
@@ -41,14 +49,20 @@ async function solveCaptcha() {
             await new Promise(resolve => setTimeout(resolve, 1000)); // Delay for 1 second
 
             const getResultPayload = { clientKey: api_key, taskId: task_id };
-            const resp = await axios.post("https://api.capsolver.com/getTaskResult", getResultPayload);
-            const status = resp.data.status;
+            const resp = await request.post({
+                uri: "https://api.capsolver.com/getTaskResult",
+                body: getResultPayload,
+                json: true,
+                proxy: proxyUrl
+            });
+            
+            const status = resp.status;
 
             if (status === "ready") {
-                return resp.data.solution.gRecaptchaResponse;
+                return resp.solution.gRecaptchaResponse;
             }
-            if (status === "failed" || resp.data.errorId) {
-                throw new Error("Captcha solving failed: " + resp.data.errorId);
+            if (status === "failed" || resp.errorId) {
+                throw new Error("Captcha solving failed: " + resp.errorId);
             }
         }
     } catch (error) {
@@ -91,11 +105,16 @@ app.post('/send-follower', async (req, res) => {
     };
 
     try {
-        const response = await axios.post('https://www.instafollowers.co/free-profile', new URLSearchParams(payload).toString(), { headers, httpsAgent: proxyAgent });
-        res.json(response.data);
+        const response = await request.post({
+            uri: 'https://www.instafollowers.co/free-profile',
+            body: new URLSearchParams(payload).toString(),
+            headers: headers,
+            proxy: proxyUrl
+        });
+        res.json(response);
     } catch (error) {
-        if (error.response) {
-            res.status(error.response.status).json(error.response.data);
+        if (error.statusCode) {
+            res.status(error.statusCode).json(error.error);
         } else {
             res.status(500).json({ status: 'error', message: 'An unexpected error occurred.' });
         }
