@@ -3,6 +3,7 @@ const axios = require('axios');
 const bodyParser = require('body-parser');
 const path = require('path');
 const { HttpsProxyAgent } = require('https-proxy-agent');
+const cors = require('cors'); // Import CORS
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -11,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 const proxyUrl = 'http://mflbldce:mvrkp30hptsm@206.41.172.74:6634';
 const proxyAgent = new HttpsProxyAgent(proxyUrl);
 
+app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
